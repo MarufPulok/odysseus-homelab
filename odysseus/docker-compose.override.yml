@@ -1,0 +1,6 @@
+# Local (dell) override: fixed bridge name so ufw can allow Ollama
+# (172.17.0.1:11434) from this network only. See ~/dell-setup-root.sh.
+networks:
+  default:
+    driver_opts:
+      com.docker.network.bridge.name: br-odysseus

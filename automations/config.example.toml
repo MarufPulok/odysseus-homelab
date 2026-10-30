@@ -1,0 +1,50 @@
+# Copy to config.toml and edit. Every job re-reads it on its next run.
+# Jobs only read the sections they need, so delete what you don't use.
+
+ntfy_url = "http://127.0.0.1:8091"
+ntfy_topic = "Reminders"          # same topic Odysseus uses, so the phone subscribes once
+odysseus_url = "http://127.0.0.1:7011"
+ollama_url = "http://172.17.0.1:11434"
+ollama_model = "qwen3:4b-instruct-2507-q4_K_M"
+# odysseus_dir = "~/odysseus"                  # where you cloned Odysseus (backup.py)
+# odysseus_container = "odysseus-odysseus-1"   # docker compose container name
+
+# watchdog.py, brief.py, prep.py: one block per site or project you look after.
+# `checks` are URLs that must answer 2xx/3xx (a URL ending in /ready must also return {"status": "ok"}).
+# `nightly_report = true` sends a paste-ready status message for a client every night.
+[[project]]
+name = "Shop"                     # matched against calendar event titles for meeting prep
+label = "Example Shop"
+notion_project = "Shop"           # project name on your Notion board (notion_sync.py)
+nightly_report = false
+checks = ["https://example.com/"]
+
+# releases.py: weekly digest of stable releases, summarised by the local model.
+[releases]
+repos = ["vercel/next.js", "nestjs/nest"]
+
+# vulns.py: high/critical Node.js releases + npm advisories for these packages, posted to Slack.
+[vulns]
+slack_channel = "C0000000000"     # channel ID (right-click channel > Copy link)
+packages = ["next", "react", "express"]
+
+# slack_todos.py: DMs and @mentions that arrive outside work hours become Odysseus todos.
+# Work runs work_start → work_end (can pass midnight); off_days are fully off.
+[slack_todos]
+work_start = 9
+work_end = 18
+off_days = ["Sat", "Sun"]
+
+# capture.py: publish to this ntfy topic from your phone → todo, or a link → summary document.
+[capture]
+topic = "inbox"
+
+# notion_sync.py: mirror tasks assigned to you on a Notion board into the Odysseus calendar.
+# Uses a logged-in browser profile (notion-login.sh), for boards where you can't add an integration.
+# IDs: open the board, devtools > Network, find the queryCollection request, copy from its body.
+[notion]
+collection = ""
+view = ""
+space = ""
+timezone = "UTC"                  # IANA name, e.g. "Europe/Berlin"
+done_statuses = ["Done", "Archived"]
