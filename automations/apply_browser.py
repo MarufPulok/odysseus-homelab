@@ -4,7 +4,7 @@ MCP server that gives Claude a few form tools for ONE tab (env APPLY_TAB).
   python apply_browser.py serve      # started by claude via --mcp-config, never by hand
 
 Claude can't open arbitrary URLs (only click links on the page or open an embedded ATS iframe), can only upload
-resume/remote.pdf or resume/relocation.pdf, and with APPLY_DRY_RUN=1 can't click anything that submits.
+resume/{remote,relocation,current}.pdf, and with APPLY_DRY_RUN=1 can't click anything that submits.
 Run with the browser-use venv python (it has `websockets` and `mcp`).
 """
 import asyncio
@@ -223,8 +223,8 @@ async def check(t, i, on=True):
 
 
 async def upload(t, i, resume):
-    if resume not in ("remote", "relocation"):
-        return "resume must be 'remote' or 'relocation'"
+    if resume not in ("remote", "relocation", "current"):
+        return "resume must be 'remote', 'relocation' or 'current'"
     root = (await t.cdp("DOM.getDocument", depth=0))["root"]["nodeId"]
     node = (await t.cdp("DOM.querySelector", nodeId=root, selector=f'input[type=file][data-apply-idx="{i}"]'))["nodeId"]
     if not node:
@@ -314,7 +314,7 @@ def serve():
 
     @m.tool()
     async def upload_resume(i: int, resume: str) -> str:
-        """Attach a resume to file field i. resume is 'remote' or 'relocation'."""
+        """Attach a resume to file field i. resume is 'remote', 'relocation' or 'current'."""
         return await on_tab(upload, i, resume)
 
     @m.tool()
