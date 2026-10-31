@@ -55,15 +55,18 @@ def http(url, body=None, headers=None, method=None, timeout=20):
         return 0, f"{type(e).__name__}: {e}"
 
 
-def notify(title, message, priority=3, tags=None, click=None, copy=None):
-    """Markdown message to the phone. `copy` adds a button that puts that text on the clipboard (for Slack)."""
+def notify(title, message, priority=3, tags=None, click=None, copy=None, actions=None, topic=None):
+    """Markdown message to the phone. `copy` adds a button that puts that text on the clipboard (for Slack).
+    `actions`: raw ntfy action buttons (https://docs.ntfy.sh/publish/#action-buttons). `topic` overrides ntfy_topic."""
     c = cfg()
-    body = {"topic": c["ntfy_topic"], "title": title, "message": message[:4000],
+    body = {"topic": topic or c["ntfy_topic"], "title": title, "message": message[:4000],
             "priority": priority, "tags": tags or [], "markdown": True}
     if click:
         body["click"] = click
     if copy:
         body["actions"] = [{"action": "copy", "label": "Copy for Slack", "value": copy[:3000]}]
+    if actions:
+        body["actions"] = actions
     status, text = http(c["ntfy_url"], body)
     if status != 200:
         raise RuntimeError(f"ntfy publish failed: {status} {text[:200]}")

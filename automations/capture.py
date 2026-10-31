@@ -2,6 +2,7 @@
 
   text  ("call the bank tomorrow 4pm")  → todo, reminder at that time
   link  (shared from the phone)     → Qwen summary saved as an Odysseus Document
+  "track <job>" (job alert button)  → job todo (jobs.py)
 
 Long-running (systemd service, restarts on failure). Replies go to the normal Reminders topic, never back to inbox.
 """
@@ -27,7 +28,10 @@ def page_text(url):
 
 
 def handle(text):
-    if m := URL.search(text):
+    if text.startswith("track "):
+        from jobs import track  # lazy: jobs.py pulls in the job modules
+        track(text[6:])
+    elif m := URL.search(text):
         url = m.group(0)
         try:
             title, body = page_text(url)

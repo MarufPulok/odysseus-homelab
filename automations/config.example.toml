@@ -3,6 +3,7 @@
 
 ntfy_url = "http://127.0.0.1:8091"
 ntfy_topic = "Reminders"          # same topic Odysseus uses, so the phone subscribes once
+ntfy_public_url = "https://<machine>.<tailnet>.ts.net:8443"  # how the phone reaches ntfy (job Track button)
 odysseus_url = "http://127.0.0.1:7011"
 ollama_url = "http://172.17.0.1:11434"
 ollama_model = "qwen3:4b-instruct-2507-q4_K_M"
@@ -48,3 +49,22 @@ view = ""
 space = ""
 timezone = "UTC"                  # IANA name, e.g. "Europe/Berlin"
 done_statuses = ["Done", "Archived"]
+
+# jobs.py: job radar. Remote roles you can take from where you live, or visa-sponsored roles in
+# `countries`; scored against `profile` by the local model. Track buttons go to the [capture] topic.
+# Defaults for title_include / title_exclude / boost_usd_year are in job_score.py.
+[jobs]
+topic = "jobs"                    # own ntfy topic; omit to use ntfy_topic
+sources = ["himalayas", "arbeitnow", "remotive", "wwr", "hn", "greenhouse", "lever", "ashby"]
+countries = ["NL", "DE", "IE"]     # ISO codes where a visa-sponsored job counts
+exclude_companies = []
+min_usd_year = 18000              # reject only when the posting lists lower pay
+alert_at = 8                      # score >= this: instant alert; digest_at..alert_at-1: evening digest
+digest_at = 5
+profile = """
+Full-stack engineer, 4 years. TypeScript, React, Next.js, Node.js, PostgreSQL, AWS.
+Lives in <country> (UTC+X). Wants remote or relocation with visa sponsorship.
+"""
+greenhouse = ["gitlab"]           # board tokens: boards.greenhouse.io/<token>
+lever = []                        # jobs.lever.co/<slug>
+ashby = []                        # jobs.ashbyhq.com/<name>

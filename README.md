@@ -48,6 +48,7 @@ Pick the ones you want. Each needs only the config section named here.
 | `weekly.py` | Friday | Weekly status update for your lead from your tasks. | `notion_sync.py` |
 | `slack_todos.py` | every 15 min | Slack DMs and mentions outside work hours become todos (title + link only). | `[slack_todos]`, Slack session |
 | `vulns.py` | every 2 h | Posts high/critical Node.js and npm advisories for your packages to a Slack channel. | `[vulns]`, Slack session |
+| `jobs.py` | 4x daily + 20:00 | Job radar: remote and visa-sponsored roles from job boards, HN and company ATS boards, filtered and scored against your profile by the local model. 8+ is an instant alert with Open/Track buttons, 5-7 goes to an evening digest. Track makes an Odysseus todo. Never applies for you. | `[jobs]`, `[capture]` |
 | `notion_sync.py` | 5x daily | Mirrors tasks assigned to you on a Notion board into the Odysseus calendar. | `[notion]`, browser login |
 
 **Slack and Notion jobs are optional examples.** They act as you through your own

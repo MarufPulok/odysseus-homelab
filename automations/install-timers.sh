@@ -20,6 +20,8 @@ jobs=(
   "auto-backup|*-*-* 03:30|backup.py|true"
   "auto-guard|*:0/5|backup.py guard|false"
   "auto-slacktodos|*:0/15|slack_todos.py|false"
+  "auto-jobs|*-*-* 10,14,18,22:30|jobs.py|true"
+  "auto-jobdigest|*-*-* 20:00|jobs.py digest|true"
 )
 
 want=("$@")
