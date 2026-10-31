@@ -1,13 +1,16 @@
 """Job radar: new remote / visa-sponsored jobs, scored by the local model, sent to the phone.
 
-  jobs.py          fetch → filter → score. score >= alert_at: instant alert with Open/Track buttons;
+  jobs.py          fetch → filter → score. score >= alert_at: instant alert with Open/Track/Apply buttons;
                    digest_at..alert_at-1: queued for the evening digest
   jobs.py digest   send the queue as one numbered message
 
 Track: the button publishes "track <id>" to the [capture] topic; capture.py calls track() here.
 From the digest, send "track 3" to the same topic to track line 3.
+Apply: same, with "apply <id|n>"; apply() launches apply.py as a detached systemd unit.
 """
 import datetime as dt
+import re
+import subprocess
 import sys
 
 from common import cfg, load, now, odysseus, save
@@ -44,7 +47,8 @@ def alert(j, s):
     notify(f"🔥 {s['score']}/10 · {j['title'][:80]}", f"{summary(j, s)}\nWhy: {s['why']}{gap}",
            priority=4, tags=["briefcase"], click=j["url"], actions=[
                {"action": "view", "label": "Open", "url": j["url"]},
-               {"action": "copy", "label": "Copy link", "value": j["url"]},
+               {"action": "http", "label": "Apply", "url": topic_url, "method": "POST",
+                "body": f"apply {j['id']}", "clear": True},
                {"action": "http", "label": "Track", "url": topic_url, "method": "POST",
                 "body": f"track {j['id']}", "clear": True}])
 
@@ -92,7 +96,7 @@ def digest():
         return
     lines = [f"{n}. {q['line']}" for n, q in enumerate(queue, 1)]
     if queue:
-        lines.append("\nTrack one: send `track <number>` to your inbox topic.")
+        lines.append("\nTrack one: send `track <number>` or `apply <number>` to your inbox topic.")
     if errors:
         lines.append("Sources down: " + "; ".join(errors))
     notify(f"📋 Jobs today: {len(queue)} maybe", "\n".join(lines), tags=["clipboard"])
@@ -100,13 +104,18 @@ def digest():
     save("jobs_digest.json", [])
 
 
-def track(ref):
-    """"track <id>" from an alert button, or "track <n>" for line n of the last digest → Odysseus todo."""
+def lookup(ref):
+    """Job id or digest line number → (id, info), or (ref, None) if unknown."""
     ref = ref.strip()
     if ref.isdigit():
         ids = load("jobs_last_digest.json", [])
         ref = ids[int(ref) - 1] if 0 < int(ref) <= len(ids) else ""
-    j = load("jobs_info.json", {}).get(ref)
+    return ref, load("jobs_info.json", {}).get(ref)
+
+
+def track(ref):
+    """"track <id>" from an alert button, or "track <n>" for line n of the last digest → Odysseus todo."""
+    ref, j = lookup(ref)
     if not j:
         notify("⚠️ Track failed", f"Unknown job `{ref}`", tags=["warning"])
         return
@@ -114,6 +123,22 @@ def track(ref):
     odysseus("/todos", {"action": "add", "title": f"Apply: {j['company']} – {j['title']}"[:80],
                         "content": f"{j['url']}\n{j['why']}", "due_date": due.isoformat(), "label": "Jobs"})
     notify(f"📌 Tracking: {j['company']}", f"{j['title']}\nTodo due {due:%a %-d %b}", tags=["pushpin"])
+
+
+def apply(ref):
+    """"apply <id|n>" → apply.py in its own transient unit (it reports ✅/⚠️ itself); never blocks capture."""
+    ref, j = lookup(ref)
+    if not j:
+        notify("⚠️ Apply failed", f"Unknown job `{ref}`", tags=["warning"])
+        return
+    unit = "apply-" + re.sub(r"[^A-Za-z0-9-]", "-", ref)[:60]
+    r = subprocess.run(["systemd-run", "--user", "--collect", f"--unit={unit}",
+                        "/home/mruf/.local/share/browser-use-venv/bin/python", "/home/mruf/automations/apply.py", ref],
+                       capture_output=True, text=True)
+    if r.returncode:
+        notify("⚠️ Apply failed", f"{j['company']}: {r.stderr.strip()[:300]}", tags=["warning"])
+        return
+    notify(f"🤖 Applying: {j['company']}", f"{j['title']}\nYou'll get a ✅ or ⚠️ when done.", tags=["robot"])
 
 
 if __name__ == "__main__":

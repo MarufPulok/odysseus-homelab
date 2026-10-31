@@ -40,6 +40,7 @@ VISA_NO = re.compile(r"(no|not|without|unable to|cannot|can't|can not|not able t
                      r"must be (legally )?(authori[sz]ed|eligible) to work", re.I)
 VISA_YES = re.compile(r"visa sponsorship|sponsor(s|ing)? (your |a |work )?visa|we sponsor|relocation (package|support|assistance)|"
                       r"relocation (is )?(provided|offered|available)|work permit support", re.I)
+NEG = re.compile(r"\b(no|not|never|unable|cannot|can ?not|without|don't|do not|won't)\b|n't\b", re.I)  # negation inside a sentence
 CITIES = {"NL": "netherlands|holland|amsterdam|rotterdam|utrecht|eindhoven|the hague|delft",
           "DE": "germany|deutschland|berlin|munich|münchen|hamburg|frankfurt|cologne|köln|stuttgart|düsseldorf",
           "JP": "japan|tokyo|osaka|kyoto|yokohama|fukuoka",
@@ -74,7 +75,8 @@ def lanes(job, jc):
               and (remote_location(loc) or bool(REMOTE_TEXT.search(text))))
     visa = job.get("visa")
     if visa is None:
-        visa = not VISA_NO.search(text) and bool(VISA_YES.search(text))
+        hits = [bool(NEG.search(s)) for s in re.split(r"[.!?;\n]", text) if VISA_YES.search(s)]  # negated sentence = no visa
+        visa = not VISA_NO.search(text) and bool(hits) and not any(hits)
     country = next((c for c in jc["countries"]  # ISO code only in capitals: "de"/"ie" are ordinary words
                     if re.search(rf"\b{c}\b", loc) or (c in CITIES and re.search(rf"\b({CITIES[c]})\b", loc, re.I))), None)
     return {"remote_ok": bool(ra), "visa": bool(visa), "country": country}

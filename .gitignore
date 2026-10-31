@@ -4,3 +4,5 @@ automations/.venv/
 __pycache__/
 *.pyc
 .DS_Store
+automations/apply_profile.md
+automations/resume/

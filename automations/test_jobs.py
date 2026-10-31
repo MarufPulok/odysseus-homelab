@@ -38,6 +38,10 @@ assert lanes(job(text="We offer visa sponsorship and relocation."), JC)["visa"]
 assert lanes(job(text="Relocation assistance provided"), JC)["visa"]
 assert not lanes(job(text="No visa sponsorship available."), JC)["visa"]       # negation beats positive
 assert not lanes(job(text="We are unable to sponsor visas. Visa sponsorship is not possible"), JC)["visa"]
+assert not lanes(job(text="This role requires being based in Berlin/Helsinki on a hybrid basis. We are currently unable to offer fully remote work, visa sponsorship, or relocation support for this opportunity."), JC)["visa"]  # Wolt
+assert not lanes(job(text="Visa sponsorship is not available. Remote role based in Germany, with overlap during CET."), JC)["visa"]  # Clera
+assert lanes(job(text="We offer visa sponsorship and relocation support"), JC)["visa"]
+assert lanes(job(text="Relocation package provided"), JC)["visa"]
 assert not lanes(job(text="Must have the right to work in Germany"), JC)["visa"]
 assert not lanes(job(text="Great team"), JC)["visa"]
 assert lanes(job(visa=True, text="no visa sponsorship"), JC)["visa"]            # structured wins
