@@ -68,3 +68,7 @@ Lives in <country> (UTC+X). Wants remote or relocation with visa sponsorship.
 greenhouse = ["gitlab"]           # board tokens: boards.greenhouse.io/<token>
 lever = []                        # jobs.lever.co/<slug>
 ashby = []                        # jobs.ashbyhq.com/<name>
+# "email" source: job-alert emails (LinkedIn, Wellfound, ...) that a Gmail filter puts under a label.
+# Needs an app password in ~/.config/automations/gmail-app-password; add "email" to `sources`.
+# email_user = "you@gmail.com"
+# email_label = "Job Alerts"

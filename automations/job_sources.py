@@ -1,14 +1,18 @@
 """Job fetchers. Each source returns normalized job dicts; fetch_all never lets one source kill the run."""
 import datetime as dt
+import email as mail
+import hashlib
 import html
+import imaplib
 import json
+import pathlib
 import re
 import time
 import urllib.parse
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor
 
-from common import http, load, save
+from common import http, llm, load, save
 from job_score import remote_location
 
 DAYS = 3  # aggregators are newest-first; stop paging once we reach older posts
@@ -218,9 +222,74 @@ def ashby(jc):
         return out
     return boards("ashby", jc.get("ashby", []), one)
 
+MAIL_PASSWORD = pathlib.Path.home() / ".config/automations/gmail-app-password"
+MAIL_SENDERS = ["linkedin.com", "wellfound.com", "himalayas.app", "relocate.me", "remotehunter.com", "workingnomads.com"]
+MAIL_SYSTEM = ("You extract job listings from a job-alert email. Links appear as [n] before the text they wrap. "
+               'Reply with JSON only: {"jobs": [{"title": "...", "company": "...", "location": "as written, include '
+               'remote/onsite words", "salary_min": number or null, "salary_max": number or null, "currency": "ISO code" '
+               'or null, "period": "year"|"month"|"hour"|null, "details": "experience/stack/type, max 20 words", '
+               '"link": n}]}. Write numbers in full: $120k = 120000, ₹20L = 2000000 INR. "link" is the [n] of that '
+               'job\'s own link. Skip ads, partner offers and articles. No job listings -> {"jobs": []}.')
+
+
+def mail_text(msg):
+    """Email body as text with links numbered [n], plus [(url, link text)]."""
+    parts = {p.get_content_type(): p for p in msg.walk() if p.get_content_type() in ("text/html", "text/plain")}
+    p = parts.get("text/html") or parts.get("text/plain")
+    if not p:
+        return "", []
+    s = p.get_payload(decode=True).decode(p.get_content_charset() or "utf-8", "replace")
+    links = []
+
+    def link(m):
+        links.append((html.unescape(m.group(1)), re.sub(r"<[^>]+>|\s+", " ", m.group(2)).strip()))
+        return f" [{len(links)}] {m.group(2)} "
+    s = re.sub(r'<a\b[^>]*href="([^"]+)"[^>]*>(.*?)</a>', link, s, flags=re.S | re.I)
+    s = re.sub(r"<(style|script|head)[^>]*>.*?</\1>", " ", s, flags=re.S | re.I)
+    s = html.unescape(re.sub(r"<[^>]+>", " ", re.sub(r"<br\s*/?>|</(p|div|tr|li|h\d|td)>", "\n", s, flags=re.I)))
+    return re.sub(r"\n\s*\n+", "\n", re.sub(r"[ \t\u00a0\u200c\u034f]+", " ", s)).strip(), links
+
+
+def email_alerts(jc):
+    """Job-alert emails (LinkedIn, Wellfound, ...) under a Gmail label, read over IMAP with an app password.
+    The local model turns each email into jobs; each email is read once (state: jobs_email.json)."""
+    st = load("jobs_email.json", {"done": []})
+    done = set(st["done"])
+    m = imaplib.IMAP4_SSL("imap.gmail.com")
+    m.login(jc["email_user"], MAIL_PASSWORD.read_text().strip())
+    m.select(f'"{jc.get("email_label", "Job Alerts")}"', readonly=True)
+    since = (dt.date.today() - dt.timedelta(days=DAYS)).strftime("%d-%b-%Y")
+    uids = [u.decode() for u in m.uid("SEARCH", None, "SINCE", since)[1][0].split() if u.decode() not in done]
+    out = []
+    for uid in uids[:10]:  # ~1-2 min of model time each; the rest wait for the next run
+        msg = mail.message_from_bytes(m.uid("FETCH", uid, "(BODY.PEEK[])")[1][0][1])
+        sender = re.sub(r".*@|>.*", "", msg.get("From", "")).lower()
+        if any(sender.endswith(d) for d in jc.get("email_senders", MAIL_SENDERS)):
+            text, links = mail_text(msg)
+            try:
+                found = json.loads(llm(f"From: {sender}\nSubject: {msg.get('Subject', '')}\n\n{text[:6000]}",
+                                       MAIL_SYSTEM, max_tokens=1500, fmt="json")).get("jobs") or []
+            except json.JSONDecodeError:
+                found = []
+            for j in found:
+                if not isinstance(j, dict) or not j.get("title"):
+                    continue
+                n = int(re.sub(r"\D", "", str(j.get("link"))) or 0)  # the model writes 4, "4" or "[4]"
+                url = next((u for u, a in links if j["title"].lower() in a.lower()),  # title link beats a guessed n
+                           links[n - 1][0] if 0 < n <= len(links) else "")
+                k = hashlib.sha1(f"{j.get('company')}|{j['title']}".lower().encode()).hexdigest()[:12]
+                out.append(job("email", k, j["title"], j.get("company"), url, str(j.get("location") or ""),
+                               salary=(j.get("salary_min"), j.get("salary_max"), j.get("currency"), j.get("period")),
+                               text=f"{j.get('details') or ''} (via {sender} alert)"))
+        done.add(uid)
+    m.logout()
+    save("jobs_email.json", {"done": sorted(done, key=int)[-2000:]})
+    return out
+
+
 
 SOURCES = {"himalayas": himalayas, "arbeitnow": arbeitnow, "remotive": remotive, "wwr": wwr, "hn": hn,
-           "greenhouse": greenhouse, "lever": lever, "ashby": ashby}
+           "greenhouse": greenhouse, "lever": lever, "ashby": ashby, "email": email_alerts}
 
 
 def fetch_all(jc):

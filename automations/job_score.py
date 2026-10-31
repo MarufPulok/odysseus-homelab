@@ -31,7 +31,7 @@ REMOTE_NO = re.compile(r"\bus[- ]only\b|\bus[- ]based\b|(based|located|reside|re
                        r"\b(us|eu|uk|european|canadian) (residents|citizens|timezones?)\b|north america|"
                        r"\bmust (be|live) in (the )?(us|usa|eu|uk|europe)\b|(us|usa|uk|eu|europe)[- ]only", re.I)
 HOME = r"bangladesh|utc ?\+ ?6"  # where you live and your time zone; edit both (and REGION) for your location
-REMOTE_YES = re.compile(rf"worldwide|anywhere|{HOME}|any time ?zone", re.I)  # checked against the location only
+REMOTE_YES = re.compile(rf"worldwide|anywhere|everywhere|{HOME}|any time ?zone", re.I)  # checked against the location only
 REGION = re.compile(r"\bglobal(ly)?\b|\bapac\b|\basia\b", re.I)
 REMOTE_WORD = re.compile(r"remote|home|distributed", re.I)
 REMOTE_TEXT = re.compile(r"remote[^.]{0,40}\b(worldwide|anywhere in the world|apac|asia)\b|" + HOME, re.I)  # descriptions say "global" about everything
